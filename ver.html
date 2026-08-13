@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Tela 2 - Visualizador Logístico Avançado</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            transition: background 0.1s; 
+            background-image: url('fundo.png'); 
+            background-size: cover; 
+            background-position: center;
+        }
+        .tela { text-align: center; width: 90%; max-width: 850px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .painel-principal { background: rgba(30, 34, 43, 0.9); padding: 25px; border-radius: 12px; border: 2px solid #2ed573; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        h2 { color: #a4b0be; font-size: 18px; text-transform: uppercase; margin: 0 0 15px 0; letter-spacing: 1px; }
+        .label { font-size: 15px; color: #a4b0be; text-transform: uppercase; margin-bottom: 2px; }
+        .valor { font-weight: bold; word-wrap: break-word; letter-spacing: 1px; }
+        
+        #txt-nome { font-size: 34px; color: #3498db; margin-bottom: 15px; }
+        
+        /* Barra de somatório geral */
+        .grid-detalhes { display: flex; justify-content: space-around; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .detalhe-item { flex: 1; text-align: center; }
+        .detalhe-item .valor-mini { font-size: 20px; color: #3498db; font-weight: bold; }
+        #txt-peso-total { color: #fffa65; } /* Destaca o peso acumulado */
+
+        #container-visual-senhas { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+        
+        /* Blocos de senha com a nova informação de peso embaixo */
+        .bloco-senha-completo { background: rgba(255, 255, 255, 0.05); padding: 12px 20px; border-radius: 10px; border: 1px solid rgba(46, 213, 115, 0.4); text-align: center; min-width: 140px; }
+        .senha-codigo { font-size: 52px; color: #2ed573; font-weight: bold; line-height: 1em; }
+        .senha-vol-info { font-size: 14px; color: #a4b0be; text-transform: uppercase; margin-top: 6px; font-weight: bold; }
+        .senha-peso-info { font-size: 14px; color: #f1c40f; font-weight: bold; margin-top: 2px; }
+
+        /* Histórico */
+        .secao-historico { background: rgba(30, 34, 43, 0.95); padding: 20px; border-radius: 12px; text-align: left; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        .secao-historico h3 { font-size: 15px; color: #747d8c; text-transform: uppercase; margin: 0 0 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        
+        #lista-historico { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+        .historico-item { display: flex; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px; font-size: 15px; color: #ced6e0; align-items: center; }
+        .hist-info { color: #a4b0be; font-size: 13px; }
+        .hist-nome { color: #54a0ff; font-weight: bold; }
+        .hist-senhas { color: #7bed9f; font-weight: bold; font-size: 15px; text-align: right; }
+
+        .alerta-visual { background-image: none !important; background-color: #ff4757 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="tela">
+        <div class="painel-principal">
+            <h2>Chamada Atual</h2>
+            
+            <div class="label">Usuário</div>
+            <div id="txt-nome" class="valor">---</div>
+            
+            <div class="grid-detalhes">
+                <div class="detalhe-item">
+                    <div class="label">Soma de Volumes</div>
+                    <div id="txt-volumes-total" class="valor-mini">---</div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="label">Tipo de Carga</div>
+                    <div id="txt-carga" class="valor-mini">---</div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="label">Soma de Pesos</div>
+                    <div id="txt-peso-total" class="valor-mini">---</div>
+                </div>
+            </div>
+            
+            <div class="label">Senha(s) Chamada(s)</div>
+            <div id="container-visual-senhas">
+                <div class="bloco-senha-completo">
+                    <div class="senha-codigo">---</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="secao-historico">
+            <h3>Últimas Chamadas</h3>
+            <div id="lista-historico"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        const txtNome = document.getElementById('txt-nome');
+        const txtVolumesTotal = document.getElementById('txt-volumes-total');
+        const txtCarga = document.getElementById('txt-carga');
+        const txtPesoTotal = document.getElementById('txt-peso-total');
+        const containerVisualSenhas = document.getElementById('container-visual-senhas');
+        const listaHistorico = document.getElementById('lista-historico');
+
+        let dadosAnteriores = null;
+
+        function tocarBip() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, context.currentTime);
+            gain.gain.setValueAtTime(0.3, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(context.destination);
+            osc.start();
+            osc.stop(context.currentTime + 0.4);
+        }
+
+        socket.on('mostrar-dados', (dados) => {
+            
+            if (dadosAnteriores) {
+                const itemHist = document.createElement('div');
+                itemHist.className = 'historico-item';
+
+                const n = dadosAnteriores.nome ? dadosAnteriores.nome.toUpperCase() : "SEM NOME";
+                const detalhesTexto = `(Vol Totais: ${dadosAnteriores.volumesTotal} | Peso Tot: ${dadosAnteriores.pesoTotalGeral})`;
+                
+                // Formata os dados agregados para caber compacto no histórico
+                const textoSenhasCompleto = dadosAnteriores.itens.map(i => `${i.senha.toUpperCase()} (${i.volume}V - ${i.pesoExibição})`).join(' | ');
+
+                itemHist.innerHTML = `
+                    <div>
+                        <span class="hist-nome">${n}</span> 
+                        <span class="hist-info">${detalhesTexto}</span>
+                    </div>
+                    <span class="hist-senhas">${textoSenhasCompleto}</span>
+                `;
+
+                listaHistorico.insertBefore(itemHist, listaHistorico.firstChild);
+
+                if (listaHistorico.children.length > 3) {
+                    listaHistorico.removeChild(listaHistorico.lastChild);
+                }
+            }
+
+            // Atualiza os dados fixos
+            txtNome.innerText = dados.nome.length > 0 ? dados.nome.toUpperCase() : "---";
+            txtVolumesTotal.innerText = dados.volumesTotal;
+            txtCarga.innerText = dados.carga.length > 0 ? dados.carga.toUpperCase() : "---";
+            txtPesoTotal.innerText = dados.pesoTotalGeral;
+            
+            // Renderiza os novos blocos individuais
+            containerVisualSenhas.innerHTML = "";
+            dados.itens.forEach(item => {
+                const caixaBloco = document.createElement('div');
+                caixaBloco.className = 'bloco-senha-completo';
+
+                caixaBloco.innerHTML = `
+                    <div class="senha-codigo">${item.senha.toUpperCase()}</div>
+                    <div class="senha-vol-info">${item.volume} Vol</div>
+                    <div class="senha-peso-info">${item.pesoExibição}</div>
+                `;
+                containerVisualSenhas.appendChild(caixaBloco);
+            });
+
+            dadosAnteriores = dados;
+
+            tocarBip();
+            document.body.classList.add('alerta-visual');
+            setTimeout(() => { document.body.classList.remove('alerta-visual'); }, 300);
+        });
+    </script>
+</body>
+</html>

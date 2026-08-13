@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Tela 1 - Painel de Controle</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px 0;
+            background-image: url('fundo.png'); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed;
+        }
+        .tela { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); width: 550px; text-align: center; }
+        .campo-grupo { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+        
+        input, select { padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .input-cheio { width: 100%; margin-bottom: 5px; }
+
+        /* Estrutura da linha: Senha + Volume + Peso + Unidade + Remover */
+        .linha-senha { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; width: 100%; }
+        .input-senha { flex: 2.5; min-width: 0; } 
+        .input-volume { flex: 1; text-align: center; min-width: 0; } 
+        .input-peso { flex: 1.5; min-width: 0; }
+        .select-unidade { flex: 1.2; padding: 12px 5px; min-width: 0; }
+        
+        .btn-remover { background: #ff4757; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-remover:hover { background: #ff2a3a; }
+
+        .btn-secundario { background: #3498db; color: white; border: none; padding: 10px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; margin-bottom: 20px; width: 100%; }
+        .btn-secundario:hover { background: #2980b9; }
+        button#btn-chamar { width: 100%; padding: 14px; background: #2ed573; color: white; border: none; border-radius: 4px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+        button#btn-chamar:hover { background: #26af5f; }
+    </style>
+</head>
+<body>
+
+    <div class="tela">
+        <h2>Retira - Tela</h2>
+        
+        <!-- APENAS DOIS CAMPOS FIXOS AGORA -->
+        <div class="campo-grupo">
+            <label for="campo-nome">Cliente:</label>
+            <input type="text" id="campo-nome" class="input-cheio" placeholder="Ex: M2A">
+        </div>
+
+        <div class="campo-grupo">
+            <label for="campo-carga">Tipo de Cargas:</label>
+            <input type="text" id="campo-carga" class="input-cheio" placeholder="Ex: Premium, Normal, Perecível, DGR, Etc...">
+        </div>
+
+        <!-- ÁREA INTEGRADA: TUDO DENTRO DA LINHA -->
+        <div class="campo-grupo">
+            <label>Especificações por CTE'S (Numeração | Vol. | Peso | Unid.):</label>
+            <div id="container-senhas">
+                <!-- Linha fixa inicial -->
+                <div class="linha-senha">
+                    <input type="text" class="input-senha" placeholder="Senha">
+                    <input type="number" class="input-volume" placeholder="Vol." min="1">
+                    <input type="number" class="input-peso" placeholder="Peso" step="0.01">
+                    <select class="select-unidade">
+                        <option value="KG">KG</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-add-campo" class="btn-secundario">➕ Adicionar mais CTE'S</button>
+        <button id="btn-chamar">CHAMAR NO PAINEL</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        const campoNome = document.getElementById('campo-nome');
+        const campoCarga = document.getElementById('campo-carga');
+        const containerSenhas = document.getElementById('container-senhas');
+        const btnAddCampo = document.getElementById('btn-add-campo');
+        const btnChamar = document.getElementById('btn-chamar');
+
+        // Adiciona uma nova linha completa com todos os campos integrados
+        btnAddCampo.addEventListener('click', () => {
+            const divLinha = document.createElement('div');
+            divLinha.className = 'linha-senha';
+
+            divLinha.innerHTML = `
+                <input type="text" class="input-senha" placeholder="Senha">
+                <input type="number" class="input-volume" placeholder="Vol." min="1">
+                <input type="number" class="input-peso" placeholder="Peso" step="0.01">
+                <select class="select-unidade">
+                    <option value="KG">KG</option>
+                    <option value="G">G</option>
+                </select>
+                <button type="button" class="btn-remover">❌</button>
+            `;
+
+            // Ativa o botão de remover desta linha específica
+            divLinha.querySelector('.btn-remover').addEventListener('click', () => { divLinha.remove(); });
+            containerSenhas.appendChild(divLinha);
+        });
+
+        btnChamar.addEventListener('click', () => {
+            const todasAsLinhas = document.querySelectorAll('.linha-senha');
+            const listaItensCarga = [];
+            
+            let totalVolumesGeral = 0;
+            let totalPesoKG = 0; // Vamos converter tudo para KG na barra superior para somar certo
+
+            todasAsLinhas.forEach(linha => {
+                const inputSenha = linha.querySelector('.input-senha');
+                const inputVolume = linha.querySelector('.input-volume');
+                const inputPeso = linha.querySelector('.input-peso');
+                const selectUnidade = linha.querySelector('.select-unidade');
+
+                if (inputSenha.value.trim() !== "") {
+                    const qtdVolume = inputVolume.value ? parseInt(inputVolume.value) : 1;
+                    const valorPeso = inputPeso.value ? parseFloat(inputPeso.value) : 0;
+                    const unidade = selectUnidade.value;
+
+                    totalVolumesGeral += qtdVolume;
+                    
+                    // Soma no peso geral convertendo se for gramas
+                    if (unidade === "KG") {
+                        totalPesoKG += valorPeso;
+                    } else {
+                        totalPesoKG += (valorPeso / 1000);
+                    }
+
+                    listaItensCarga.push({
+                        senha: inputSenha.value,
+                        volume: qtdVolume,
+                        pesoExibição: valorPeso ? `${valorPeso} ${unidade}` : "---"
+                    });
+                }
+            });
+
+            if (listaItensCarga.length === 0) {
+                alert("Por favor, digite pelo menos uma senha!");
+                return;
+            }
+
+            const dados = {
+                nome: campoNome.value,
+                carga: campoCarga.value || "---",
+                volumesTotal: totalVolumesGeral,
+                pesoTotalGeral: totalPesoKG > 0 ? `${totalPesoKG.toFixed(2)} KG` : "---",
+                itens: listaItensCarga
+            };
+            
+            socket.emit('dados-digitados', dados);
+        });
+    </script>
+</body>
+</html>
