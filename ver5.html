@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Tela 2 - Visualizador Logístico Avançado</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            transition: background 0.1s; 
+            background-image: url('fundo.png'); 
+            background-size: cover; 
+            background-position: center;
+        }
+        .tela { text-align: center; width: 95%; max-width: 950px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .painel-principal { background: rgba(30, 34, 43, 0.9); padding: 25px; border-radius: 12px; border: 2px solid #2ed573; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        h2 { color: #a4b0be; font-size: 18px; text-transform: uppercase; margin: 0 0 15px 0; letter-spacing: 1px; }
+        .label { font-size: 14px; color: #a4b0be; text-transform: uppercase; margin-bottom: 2px; }
+        .valor { font-weight: bold; word-wrap: break-word; letter-spacing: 1px; }
+        
+        #txt-nome { font-size: 32px; color: #ffffff; margin-bottom: 15px; }
+        
+        /* Barra de somatório geral */
+        .grid-detalhes { display: flex; justify-content: space-around; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .detalhe-item { flex: 1; text-align: center; }
+        .detalhe-item .valor-mini { font-size: 22px; color: #3498db; font-weight: bold; }
+        #txt-peso-total { color: #fffa65; }
+
+        #container-visual-senhas { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+        
+        /* Blocos de senha informativos (revertidos para estáticos) */
+        .bloco-senha-completo { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 10px; border: 1px solid rgba(46, 213, 115, 0.4); text-align: center; min-width: 190px; box-sizing: border-box; }
+        
+        .senha-codigo { font-size: 46px; color: #2ed573; font-weight: bold; line-height: 1em; margin-bottom: 4px; }
+        .senha-tipo-info { font-size: 14px; color: #54a0ff; font-weight: bold; text-transform: uppercase; background: rgba(84, 160, 255, 0.1); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
+        .senha-detalhes-linha { font-size: 13px; color: #ced6e0; margin-bottom: 3px; }
+        
+        /* Badges de Status originais */
+        .status-badge { font-size: 12px; font-weight: bold; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; display: inline-block; }
+        .status-completo { background: rgba(46, 213, 115, 0.15); color: #2ed573; }
+        .status-parcial { background: rgba(255, 159, 67, 0.15); color: #ff9f43; }
+        
+        .senha-obs-linha { font-size: 13px; color: #fffa65; font-weight: bold; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 3px; }
+
+        /* Histórico */
+        .secao-historico { background: rgba(30, 34, 43, 0.95); padding: 20px; border-radius: 12px; text-align: left; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        .secao-historico h3 { font-size: 15px; color: #747d8c; text-transform: uppercase; margin: 0 0 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        
+        #lista-historico { display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; }
+        .historico-item { display: flex; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px; font-size: 14px; color: #ced6e0; align-items: center; }
+        .hist-info { color: #a4b0be; font-size: 12px; }
+        .hist-nome { color: #ffffff; font-weight: bold; }
+        .hist-senhas { color: #7bed9f; font-weight: bold; font-size: 13px; text-align: right; max-width: 55%; word-wrap: break-word; }
+
+        .alerta-visual { background-image: none !important; background-color: #ff4757 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="tela">
+        <div class="painel-principal">
+            <h2>Painel Informativo de CTE'S</h2>
+            
+            <div class="label">Cliente Atendimento</div>
+            <div id="txt-nome" class="valor">---</div>
+            
+            <div class="grid-detalhes">
+                <div class="detalhe-item">
+                    <div class="label">Soma Total de Volumes</div>
+                    <div id="txt-volumes-total" class="valor-mini">---</div>
+                </div>
+                <div class="detalhe-item">
+                    <div class="label">Soma Total de Pesos</div>
+                    <div id="txt-peso-total" class="valor-mini">---</div>
+                </div>
+            </div>
+            
+            <div class="label">CTE'S em Atendimento</div>
+            <div id="container-visual-senhas">
+                <div class="bloco-senha-completo">
+                    <div class="senha-codigo">---</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="secao-historico">
+            <h3>Últimas Chamadas Realizadas</h3>
+            <div id="lista-historico"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        const txtNome = document.getElementById('txt-nome');
+        const txtVolumesTotal = document.getElementById('txt-volumes-total');
+        const txtPesoTotal = document.getElementById('txt-peso-total');
+        const containerVisualSenhas = document.getElementById('container-visual-senhas');
+        const listaHistorico = document.getElementById('lista-historico');
+
+        let dadosAnteriores = null;
+
+        function tocarBip() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, context.currentTime);
+            gain.gain.setValueAtTime(0.3, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(context.destination);
+            osc.start();
+            osc.stop(context.currentTime + 0.4);
+        }
+
+        socket.on('mostrar-dados', (dados) => {
+            
+            if (dadosAnteriores) {
+                const itemHist = document.createElement('div');
+                itemHist.className = 'historico-item';
+
+                const n = dadosAnteriores.nome ? dadosAnteriores.nome.toUpperCase() : "SEM NOME";
+                const detalhesTexto = `(Vol: ${dadosAnteriores.volumesTotal} | Peso: ${dadosAnteriores.pesoTotalGeral})`;
+                
+                const textoSenhasCompleto = dadosAnteriores.itens.map(i => {
+                    return `${i.senha} [${i.tipo.toUpperCase()}-${i.status}] (OBS:${i.obs})`;
+                }).join(' | ');
+
+                itemHist.innerHTML = `
+                    <div>
+                        <span class="hist-nome">${n}</span> 
+                        <span class="hist-info">${detalhesTexto}</span>
+                    </div>
+                    <span class="hist-senhas">${textoSenhasCompleto}</span>
+                `;
+
+                listaHistorico.insertBefore(itemHist, listaHistorico.firstChild);
+
+                if (listaHistorico.children.length > 3) {
+                    listaHistorico.removeChild(listaHistorico.lastChild);
+                }
+            }
+
+            txtNome.innerText = dados.nome.length > 0 ? dados.nome.toUpperCase() : "---";
+            txtVolumesTotal.innerText = dados.volumesTotal;
+            txtPesoTotal.innerText = dados.pesoTotalGeral;
+            
+            containerVisualSenhas.innerHTML = "";
+            dados.itens.forEach(item => {
+                const caixaBloco = document.createElement('div');
+                caixaBloco.className = 'bloco-senha-completo';
+                const classeStatus = item.status === "Completo" ? "status-completo" : "status-parcial";
+
+                caixaBloco.innerHTML = `
+                    <div class="senha-codigo">${item.senha}</div>
+                    <div class="senha-tipo-info">${item.tipo}</div>
+                    <div class="senha-detalhes-linha">${item.volume} Vol. | ${item.pesoExibição}</div>
+                    <div><span class="status-badge ${classeStatus}">${item.status}</span></div>
+                    <div class="senha-obs-linha">OBS: ${item.obs}</div>
+                `;
+
+                containerVisualSenhas.appendChild(caixaBloco);
+            });
+
+            dadosAnteriores = dados;
+
+            tocarBip();
+            document.body.classList.add('alerta-visual');
+            setTimeout(() => { document.body.classList.remove('alerta-visual'); }, 300);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Tela - Retira</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px 0;
+            background-image: url('fundo.png'); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed;
+        }
+        .tela { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); width: 850px; text-align: center; }
+        .campo-grupo { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+        
+        input, select { padding: 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .input-cheio { width: 100%; margin-bottom: 5px; }
+
+        /* Estrutura Expandida: Senha | Tipo | Vol | Peso | Unid | Status | OBS | ❌ */
+        .linha-senha { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; width: 100%; }
+        .input-senha { flex: 1.5; min-width: 0; } 
+        .select-tipo { flex: 1.8; min-width: 0; }
+        .input-volume { flex: 1; text-align: center; min-width: 0; } 
+        .input-peso { flex: 1.2; min-width: 0; }
+        .select-unidade { flex: 1; padding: 12px 2px; min-width: 0; }
+        .select-status { flex: 1.8; min-width: 0; }
+        .input-obs { flex: 1.5; min-width: 0; }
+        
+        .btn-remover { background: #ff4757; color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-remover:hover { background: #ff2a3a; }
+
+        .btn-secundario { background: #3498db; color: white; border: none; padding: 10px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; margin-bottom: 20px; width: 100%; }
+        .btn-secundario:hover { background: #2980b9; }
+        button#btn-chamar { width: 100%; padding: 14px; background: #2ed573; color: white; border: none; border-radius: 4px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
+        button#btn-chamar:hover { background: #26af5f; }
+    </style>
+</head>
+<body>
+
+    <div class="tela">
+        <h2>RETIRA - AZUL LOGÍSTICA</h2>
+        
+        <div class="campo-grupo">
+            <label for="campo-nome">Cliente:</label>
+            <input type="text" id="campo-nome" class="input-cheio" placeholder="Ex: M2A">
+        </div>
+
+        <div class="campo-grupo">
+            <label>Especificações por CTE'S (AWB | Tipo | Vol. | Peso | Unid. | Status | OBS):</label>
+            <div id="container-senhas">
+                <!-- Linha fixa inicial -->
+                <div class="linha-senha">
+                    <input type="tel" pattern="[0-9]*" class="input-senha" placeholder="Nº CTE'S">
+                    <select class="select-tipo">
+                        <option value="Normal">Normal</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Perecível">Perecível</option>
+                        <option value="DGR">DGR (Perigosa)</option>
+                    </select>
+                    <input type="number" class="input-volume" placeholder="Vol." min="1">
+                    <input type="number" class="input-peso" placeholder="Peso" step="0.01">
+                    <select class="select-unidade">
+                        <option value="KG">KG</option>
+                        <option value="G">G</option>
+                    </select>
+                    <select class="select-status">
+                        <option value="Completo">Completo</option>
+                        <option value="Parcial">Parcial</option>
+                    </select>
+                    <input type="text" class="input-obs" placeholder="OBS ( / )">
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-add-campo" class="btn-secundario">➕ Adicionar mais CTE'S</button>
+        <button id="btn-chamar">CHAMAR NO PAINEL</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        const campoNome = document.getElementById('campo-nome');
+        const containerSenhas = document.getElementById('container-senhas');
+        const btnAddCampo = document.getElementById('btn-add-campo');
+        const btnChamar = document.getElementById('btn-chamar');
+
+        // Função que impede letras e símbolos, aceitando APENAS números de 0-9 e a barra /
+        function aplicarFiltroObs(input) {
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/[^0-9/]/g, '');
+            });
+        }
+
+        function aplicarFiltroNumerico(input) {
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/[^0-9]/g, '');
+            });
+        }
+
+        // Ativa os filtros na primeira linha padrão
+        aplicarFiltroNumerico(containerSenhas.querySelector('.input-senha'));
+        aplicarFiltroObs(containerSenhas.querySelector('.input-obs'));
+
+        // Estrutura das próximas linhas dinâmicas
+        const estruturaLinhaHTML = `
+            <input type="tel" pattern="[0-9]*" class="input-senha" placeholder="Senha (N°)">
+            <select class="select-tipo">
+                <option value="Normal">Normal</option>
+                <option value="Premium">Premium</option>
+                <option value="Perecível">Perecível</option>
+                <option value="DGR">DGR (Perigosa)</option>
+            </select>
+            <input type="number" class="input-volume" placeholder="Vol." min="1">
+            <input type="number" class="input-peso" placeholder="Peso" step="0.01">
+            <select class="select-unidade">
+                <option value="KG">KG</option>
+                <option value="G">G</option>
+            </select>
+            <select class="select-status">
+                <option value="Completo">Completo</option>
+                <option value="Parcial">Parcial</option>
+            </select>
+            <input type="text" class="input-obs" placeholder="OBS ( / )">
+            <button type="button" class="btn-remover">❌</button>
+        `;
+
+        btnAddCampo.addEventListener('click', () => {
+            const divLinha = document.createElement('div');
+            divLinha.className = 'linha-senha';
+            divLinha.innerHTML = estruturaLinhaHTML;
+
+            // Ativa filtros numéricos e de barra na nova linha criada
+            aplicarFiltroNumerico(divLinha.querySelector('.input-senha'));
+            aplicarFiltroObs(divLinha.querySelector('.input-obs'));
+
+            divLinha.querySelector('.btn-remover').addEventListener('click', () => { divLinha.remove(); });
+            containerSenhas.appendChild(divLinha);
+        });
+
+        btnChamar.addEventListener('click', () => {
+            const todasAsLinhas = document.querySelectorAll('.linha-senha');
+            const listaItensCarga = [];
+            
+            let totalVolumesGeral = 0;
+            let totalPesoKG = 0;
+
+            todasAsLinhas.forEach(linha => {
+                const inputSenha = linha.querySelector('.input-senha');
+                const selectTipo = linha.querySelector('.select-tipo');
+                const inputVolume = linha.querySelector('.input-volume');
+                const inputPeso = linha.querySelector('.input-peso');
+                const selectUnidade = linha.querySelector('.select-unidade');
+                const selectStatus = linha.querySelector('.select-status');
+                const inputObs = linha.querySelector('.input-obs');
+
+                if (inputSenha.value.trim() !== "") {
+                    const qtdVolume = inputVolume.value ? parseInt(inputVolume.value) : 1;
+                    const valorPeso = inputPeso.value ? parseFloat(inputPeso.value) : 0;
+                    const unidade = selectUnidade.value;
+
+                    totalVolumesGeral += qtdVolume;
+                    
+                    if (unidade === "KG") { totalPesoKG += valorPeso; } 
+                    else { totalPesoKG += (valorPeso / 1000); }
+
+                    listaItensCarga.push({
+                        senha: inputSenha.value,
+                        tipo: selectTipo.value,
+                        volume: qtdVolume,
+                        pesoExibição: valorPeso ? `${valorPeso} ${unidade}` : "0 KG",
+                        status: selectStatus.value,
+                        obs: inputObs.value.trim() || "---"
+                    });
+                }
+            });
+
+            if (listaItensCarga.length === 0) {
+                alert("Por favor, digite pelo menos uma senha!");
+                return;
+            }
+
+            const dados = {
+                nome: campoNome.value,
+                volumesTotal: totalVolumesGeral,
+                pesoTotalGeral: totalPesoKG > 0 ? `${totalPesoKG.toFixed(2)} KG` : "0.00 KG",
+                itens: listaItensCarga
+            };
+            
+            socket.emit('dados-digitados', dados);
+        });
+    </script>
+</body>
+</html>
