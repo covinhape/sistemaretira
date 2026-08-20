@@ -4,7 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// Permite que o navegador acesse a imagem fundo.png diretamente
+// Servir arquivos estáticos (imagens, CSS, etc.)
 app.use(express.static(path.join(__dirname)));
 
 app.get('/digitar', (req, res) => {
@@ -20,12 +20,12 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+    // Encaminha os dados da chamada para o painel de visualização
     socket.on('dados-digitados', (dados) => {
         socket.broadcast.emit('mostrar-dados', dados);
     });
 });
 
-// Substitua o http.listen antigo por este:
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
