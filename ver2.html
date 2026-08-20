@@ -2,25 +2,40 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Tela 2 - Visualizador Logístico Avançado</title>
+    <title>Tela - Visualizador Logístico</title>
     <style>
         * { box-sizing: border-box; }
         
         body { 
             font-family: Arial, sans-serif; 
             display: flex; 
+            flex-direction: column;
             justify-content: center; 
             align-items: center; 
             min-height: 100vh; 
             margin: 0; 
             padding: 15px;
             transition: background 0.1s; 
-            background-image: url('fundo.png'); 
-            background-size: cover; 
-            background-position: center;
+            background: #1e92ce linear-gradient(180deg, #1b8ecb 0%, #2299d6 50%, #2da6e3 100%);
+            background-attachment: fixed;
         }
 
-        /* Container que ocupa quase 100% da largura útil do monitor/TV */
+        .header-logo {
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 650px;
+            width: 100%;
+        }
+
+        .logo-cover {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 30, 60, 0.25);
+            display: block;
+            margin: 0 auto;
+        }
+
         .tela { 
             text-align: center; 
             width: 98vw; 
@@ -31,11 +46,11 @@
         }
         
         .painel-principal { 
-            background: rgba(30, 34, 43, 0.92); 
+            background: rgba(30, 34, 43, 0.94); 
             padding: 20px 30px; 
             border-radius: 14px; 
             border: 2px solid #2ed573; 
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); 
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4); 
         }
         
         h2 { 
@@ -63,7 +78,6 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         
-        /* Barra horizontal de somatório geral */
         .grid-detalhes { 
             display: flex; 
             justify-content: space-around; 
@@ -77,7 +91,6 @@
         .detalhe-item .valor-mini { font-size: 24px; color: #3498db; font-weight: bold; }
         #txt-peso-total { color: #fffa65; }
 
-        /* Grade auto-ajustável para caber várias senhas por linha */
         #container-visual-senhas { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
@@ -86,7 +99,6 @@
             margin-top: 8px;
         }
         
-        /* Cartão compacto de cada CTE */
         .bloco-senha-completo { 
             background: rgba(255, 255, 255, 0.06); 
             padding: 12px 8px; 
@@ -141,7 +153,7 @@
             word-break: break-all;
         }
 
-        /* Seção de Histórico expandida */
+        /* Seção Histórico */
         .secao-historico { 
             background: rgba(30, 34, 43, 0.95); 
             padding: 15px 25px; 
@@ -149,13 +161,59 @@
             text-align: left; 
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); 
         }
-        .secao-historico h3 { 
+
+        .historico-topo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .historico-topo h3 { 
             font-size: 14px; 
             color: #747d8c; 
             text-transform: uppercase; 
-            margin: 0 0 10px 0; 
-            border-bottom: 1px solid rgba(255,255,255,0.1); 
-            padding-bottom: 5px; 
+            margin: 0;
+        }
+
+        /* Barra de Busca no Histórico */
+        .busca-historico-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .busca-historico-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-size: 13px;
+            padding: 4px;
+            width: 220px;
+        }
+
+        .busca-historico-box input::placeholder {
+            color: #a4b0be;
+        }
+
+        .btn-limpar-busca {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
         }
         
         #lista-historico { 
@@ -176,6 +234,12 @@
             color: #ced6e0; 
             align-items: center; 
             gap: 15px; 
+            transition: background 0.3s;
+        }
+
+        .historico-item.destaque-busca {
+            background: rgba(255, 234, 167, 0.25);
+            border: 1px solid #f1c40f;
         }
         
         .hist-cliente-box { min-width: 250px; }
@@ -191,7 +255,6 @@
             text-align: left;
         }
 
-        /* Status Interativos do Histórico */
         .hist-status-tag {
             font-size: 11px;
             font-weight: bold;
@@ -213,6 +276,10 @@
     </style>
 </head>
 <body>
+
+    <div class="header-logo">
+        <img class="logo-cover" src="azul_cargo_cover.jpg" alt="Azul Logística">
+    </div>
 
     <div class="tela">
         <div class="painel-principal">
@@ -241,7 +308,13 @@
         </div>
 
         <div class="secao-historico">
-            <h3>Últimas Chamadas Realizadas (Clique no status para alterar: 🟡 / 🟢 / 🔴)</h3>
+            <div class="historico-topo">
+                <h3>Últimas Chamadas Realizadas (Clique no status: 🟡 / 🟢 / 🔴)</h3>
+                <div class="busca-historico-box">
+                    <input type="text" id="campo-busca-historico" placeholder="🔍 Pesquisar CTE ou Cliente...">
+                    <button type="button" class="btn-limpar-busca" id="btn-limpar-busca" title="Limpar pesquisa">✕</button>
+                </div>
+            </div>
             <div id="lista-historico"></div>
         </div>
     </div>
@@ -255,6 +328,8 @@
         const txtPesoTotal = document.getElementById('txt-peso-total');
         const containerVisualSenhas = document.getElementById('container-visual-senhas');
         const listaHistorico = document.getElementById('lista-historico');
+        const campoBuscaHistorico = document.getElementById('campo-busca-historico');
+        const btnLimparBusca = document.getElementById('btn-limpar-busca');
 
         let dadosAnteriores = null;
 
@@ -285,8 +360,30 @@
             }
         }
 
-        socket.on('mostrar-dados', (dados) => {
+        // Filtro em tempo real no histórico
+        function filtrarListaHistorico() {
+            const termo = campoBuscaHistorico.value.trim().toLowerCase();
+            const itens = listaHistorico.querySelectorAll('.historico-item');
             
+            itens.forEach(el => {
+                const texto = el.innerText.toLowerCase();
+                if (!termo || texto.includes(termo)) {
+                    el.style.display = 'flex';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+        }
+
+        campoBuscaHistorico.addEventListener('input', filtrarListaHistorico);
+
+        btnLimparBusca.addEventListener('click', () => {
+            campoBuscaHistorico.value = '';
+            filtrarListaHistorico();
+            campoBuscaHistorico.focus();
+        });
+
+        socket.on('mostrar-dados', (dados) => {
             if (dadosAnteriores) {
                 const itemHist = document.createElement('div');
                 itemHist.className = 'historico-item';
@@ -309,10 +406,12 @@
 
                 listaHistorico.insertBefore(itemHist, listaHistorico.firstChild);
 
-                // Mantém até 5 chamadas anteriores no histórico
-                if (listaHistorico.children.length > 5) {
+                if (listaHistorico.children.length > 8) {
                     listaHistorico.removeChild(listaHistorico.lastChild);
                 }
+
+                // Reaplica o filtro atual caso haja termo digitado
+                filtrarListaHistorico();
             }
 
             txtNome.innerText = dados.nome.length > 0 ? dados.nome.toUpperCase() : "---";
